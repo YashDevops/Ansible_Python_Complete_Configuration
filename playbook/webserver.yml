@@ -1,0 +1,41 @@
+---
+- hosts: webserver
+  become: true
+  tasks:
+    - name: To install apache2 in both the instances
+      apt: name={{item}} state=present update_cache=yes
+      with_items:
+        - apache2
+        - libapache2-mod-wsgi
+        - python-pip
+        - python-virtualenv
+        - python-mysqldb
+    - name: To start the apache2 services
+      service: name=apache2 state=started enabled=yes
+    
+    - name: Ensure mod Wsgi started
+      apache2_module: name=wsgi state=present
+      notify: restart apache2
+
+    - name: To copy the demo file from local to remote
+      copy: src=demo/app/ dest=/var/www/demo mode=0755 remote_src=no
+
+    - name: copy apache2 virtual host config
+      copy: src=demo/demo.conf dest=/etc/apache2/sites-available/ mode=0755 remote_src=no
+
+    - name: Setup Python Virtual Env
+      pip: requirements=/var/www/demo/requirements.txt virtualenv=/var/www/demo/.venv
+
+    - name: Remove Default index page
+      file: path=/etc/apache2/sites-enabled/000-default.conf state=absent
+
+    - name: remove index page from apache2
+      file: path=/var/www/html/index.html state=absent
+
+    - name: activate the demo site 
+      file: src=/etc/apache2/sites-available/demo.conf dest=/etc/apache2/sites-enabled/demo.conf state=link
+      notify: restart apache2
+
+  handlers:
+    - name: restart apache2
+      service: name=apache2 state=restarted  

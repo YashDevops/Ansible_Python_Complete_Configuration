@@ -1,0 +1,26 @@
+---
+- hosts: database
+  become: true
+  tasks:
+    - name: install tools
+      apt: name={{item}} state=present update_cache=yes
+      with_items:
+        - mysql-server
+        - python-mysqldb
+
+    - name:  check mysql started or not
+      service: name=mysql state=started enabled=yes
+  
+    - name: ensure mysql listening on all port
+      lineinfile: dest=/etc/mysql/my.cnf regexp=^bind-address line="bind-address = 0.0.0.0"
+      notify: start mysql
+
+    - name: create demo database
+      mysql_db: name=demo state=present
+  
+    - name: create demo user
+      mysql_user: user=demo password=demo priv=demo.*:ALL host='%' state=present
+
+  handlers:
+     - name: start mysql
+       service: name=mysql state=restarted 

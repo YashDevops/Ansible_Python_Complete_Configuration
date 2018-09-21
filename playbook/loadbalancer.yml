@@ -1,0 +1,27 @@
+---
+- hosts: loadbalancer
+  become: true
+  tasks:
+    - name: To install load balancing components
+      apt: name={{item}} state=present update_cache=yes
+      with_items:
+        - nginx
+        - python-httplib2
+
+    - name: ensure nginx running
+      service: name=nginx state=started enabled=yes
+
+    - name: configure nginx site
+      template: src=templates/nginx.conf.j2 dest=/etc/nginx/sites-available/demo mode=0644 remote_src=no
+
+    - name: remove default sites
+      file: path=/etc/nginx/sites-enabled/default state=absent
+      notify: restart nginx
+
+    - name: activate demo sites
+      file: src=/etc/nginx/sites-available/demo dest=/etc/nginx/sites-enabled/demo state=link
+      notify: restart nginx
+
+  handlers:
+    - name: restart nginx
+      service: name=nginx state=restarted
